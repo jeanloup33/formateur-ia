@@ -1,0 +1,259 @@
+// Lazy loading optimisé pour les animations et la carte
+        if ('IntersectionObserver' in window) {
+            const animationObserver = new IntersectionObserver((entries, obs) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('animate-in');
+                        obs.unobserve(entry.target);
+                    }
+                });
+            }, {
+                threshold: 0.1,
+                rootMargin: '50px'
+            });
+
+            document.querySelectorAll('.card-hover, .testimonial-card, .contact-item').forEach(el => {
+                animationObserver.observe(el);
+            });
+
+            const mapObserver = new IntersectionObserver((entries, obs) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        const iframe = entry.target;
+                        const src = iframe.getAttribute('data-src');
+                        if (src) {
+                            iframe.src = src;
+                            iframe.removeAttribute('data-src');
+                        }
+                        obs.unobserve(iframe);
+                    }
+                });
+            }, {
+                rootMargin: '200px'
+            });
+
+            document.querySelectorAll('.lazy-map[data-src]').forEach(map => {
+                mapObserver.observe(map);
+            });
+        } else {
+            document.querySelectorAll('.lazy-map[data-src]').forEach(map => {
+                map.src = map.dataset.src;
+                map.removeAttribute('data-src');
+            });
+        }
+
+(function () {
+            const storageKey = "theme-preference";
+            const root = document.documentElement;
+            const hero = document.querySelector(".hero-bg");
+            const heroPicture = hero ? hero.querySelector("[data-hero-picture]") : null;
+            const heroImage = heroPicture ? heroPicture.querySelector("[data-hero-image]") : null;
+            const heroSources = heroPicture ? heroPicture.querySelectorAll("source[data-srcset]") : [];
+
+            const loadHeroImage = () => {
+                if (!hero || !heroImage || heroImage.dataset.loaded === "true") return;
+                heroSources.forEach((source) => {
+                    const srcset = source.getAttribute("data-srcset");
+                    if (srcset && !source.getAttribute("srcset")) {
+                        source.setAttribute("srcset", srcset);
+                    }
+                });
+                const src =
+                    heroImage.getAttribute("data-src") ||
+                    hero.dataset.bgMobile ||
+                    hero.dataset.bg ||
+                    hero.dataset.bgDesktop;
+                if (src) {
+                    heroImage.src = src;
+                }
+            };
+
+            const scheduleHero = window.requestIdleCallback || function (cb) { return setTimeout(cb, 150); };
+            if (heroImage) {
+                heroImage.addEventListener("load", () => {
+                    hero.classList.add("image-loaded");
+                    heroImage.dataset.loaded = "true";
+                });
+            }
+
+            const getStoredTheme = () => {
+                try {
+                    return localStorage.getItem(storageKey);
+                } catch (error) {
+                    return null;
+                }
+            };
+
+            const persistTheme = (theme) => {
+                try {
+                    localStorage.setItem(storageKey, theme);
+                } catch (error) {
+                    // stockage indisponible (mode privé, etc.)
+                }
+            };
+
+            const isDark = () => root.classList.contains("dark");
+
+            const themeToggleButtons = document.querySelectorAll("[data-theme-toggle]");
+
+            const syncThemeButtons = () => {
+                themeToggleButtons.forEach((btn) => {
+                    btn.setAttribute("aria-pressed", isDark().toString());
+                });
+            };
+
+            const setTheme = (theme, { persist = true } = {}) => {
+                if (theme === "dark") {
+                    root.classList.add("dark");
+                } else {
+                    root.classList.remove("dark");
+                }
+                if (persist) {
+                    persistTheme(theme);
+                }
+                syncThemeButtons();
+            };
+
+            const toggleTheme = () => {
+                setTheme(isDark() ? "light" : "dark");
+            };
+
+            const storedTheme = getStoredTheme();
+            const initialTheme = storedTheme || (root.classList.contains("dark") ? "dark" : "light");
+            setTheme(initialTheme, { persist: Boolean(storedTheme) });
+
+            scheduleHero(() => {
+                loadHeroImage();
+            });
+
+            themeToggleButtons.forEach((btn) => {
+                btn.addEventListener("click", toggleTheme);
+            });
+
+            try {
+                window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", (event) => {
+                    if (!getStoredTheme()) {
+                        setTheme(event.matches ? "dark" : "light", { persist: false });
+                    }
+                });
+            } catch (error) {
+                // matchMedia event non géré (Safari < 14 par ex.)
+            }
+
+            const menuToggle = document.getElementById("menu-toggle");
+            const mobileMenu = document.getElementById("mobile-menu");
+            const mobileMenuPanel = mobileMenu ? mobileMenu.querySelector(".mobile-menu-panel") : null;
+            let closeTimeoutId = null;
+
+            const iconSwap = (isOpen) => {
+                if (!menuToggle) return;
+                const icon = menuToggle.querySelector("i");
+                if (icon) {
+                    icon.classList.toggle("icon-bars", !isOpen);
+                    icon.classList.toggle("icon-times", isOpen);
+                }
+                const label = menuToggle.querySelector(".menu-toggle-label");
+                if (label) {
+                    label.textContent = isOpen ? "Fermer le menu" : "Ouvrir le menu";
+                }
+            };
+
+            const openMenu = () => {
+                if (!mobileMenu || !menuToggle) return;
+                if (closeTimeoutId) {
+                    clearTimeout(closeTimeoutId);
+                    closeTimeoutId = null;
+                }
+                mobileMenu.classList.remove("hidden");
+                requestAnimationFrame(() => {
+                    mobileMenu.classList.add("is-open");
+                });
+                menuToggle.setAttribute("aria-expanded", "true");
+                iconSwap(true);
+                document.body.classList.add("menu-open");
+            };
+
+            const closeMenu = () => {
+                if (!mobileMenu || !menuToggle) return;
+                mobileMenu.classList.remove("is-open");
+                menuToggle.setAttribute("aria-expanded", "false");
+                iconSwap(false);
+                document.body.classList.remove("menu-open");
+                closeTimeoutId = window.setTimeout(() => {
+                    mobileMenu.classList.add("hidden");
+                    closeTimeoutId = null;
+                }, 360);
+            };
+
+            if (menuToggle) {
+                menuToggle.addEventListener("click", () => {
+                    if (!mobileMenu) return;
+                    if (!mobileMenu.classList.contains("is-open")) {
+                        openMenu();
+                    } else {
+                        closeMenu();
+                    }
+                });
+            }
+
+            if (mobileMenu && mobileMenuPanel) {
+                mobileMenuPanel.querySelectorAll("a").forEach((link) => {
+                    link.addEventListener("click", () => closeMenu());
+                });
+            }
+
+            document.addEventListener("keydown", (event) => {
+                if (event.key === "Escape" && mobileMenu && mobileMenu.classList.contains("is-open")) {
+                    closeMenu();
+                    menuToggle?.focus();
+                }
+            });
+
+            document.addEventListener("click", (event) => {
+                if (!mobileMenu || !menuToggle || !mobileMenuPanel) return;
+                if (!mobileMenu.classList.contains("is-open")) return;
+                if (menuToggle.contains(event.target)) {
+                    return;
+                }
+                if (mobileMenuPanel.contains(event.target)) {
+                    return;
+                }
+                closeMenu();
+            });
+
+            try {
+                const desktopQuery = window.matchMedia("(min-width: 768px)");
+                desktopQuery.addEventListener("change", (event) => {
+                    if (event.matches) {
+                        closeMenu();
+                    }
+                });
+            } catch (error) {
+                // matchMedia change listener non pris en charge
+            }
+
+            const scrollTopButton = document.getElementById("scroll-top");
+            if (scrollTopButton) {
+                const toggleVisibility = () => {
+                    scrollTopButton.classList.toggle("hidden", window.scrollY < 300);
+                };
+                toggleVisibility();
+                window.addEventListener("scroll", toggleVisibility, { passive: true });
+                scrollTopButton.addEventListener("click", () => {
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                });
+            }
+        })();
+
+// Afficher les messages de succès/erreur
+const urlParams = new URLSearchParams(window.location.search);
+const status = urlParams.get('status');
+
+if (status === 'success') {
+    alert('✅ Message envoyé avec succès ! Je vous répondrai dans les plus brefs délais.');
+    // Nettoyer l'URL
+    window.history.replaceState({}, document.title, window.location.pathname);
+} else if (status === 'error') {
+    alert('❌ Erreur lors de l\'envoi du message. Veuillez réessayer ou me contacter directement par téléphone.');
+    window.history.replaceState({}, document.title, window.location.pathname);
+}

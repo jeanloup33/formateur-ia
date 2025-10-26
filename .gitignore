@@ -1,0 +1,7 @@
+node_modules/
+.npm-cache/
+reports/
+fonts_source/
+.DS_Store
+npm-debug.log
+node_modules

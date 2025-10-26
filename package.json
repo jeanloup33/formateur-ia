@@ -1,0 +1,23 @@
+{
+  "name": "formateur-ia",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "build:tailwind": "tailwindcss -i ./src/tailwind.css -o ./assets/css/tailwind.generated.css --minify",
+    "build:css": "npm run build:tailwind && python3 scripts/minify_css.py",
+    "audit:lighthouse": "node scripts/run_lighthouse.js",
+    "prepare": "husky",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "http-server": "^14.1.1",
+    "husky": "^9.1.7",
+    "lighthouse": "^12.8.2",
+    "tailwindcss": "^3.4.13"
+  }
+}
